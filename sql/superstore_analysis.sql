@@ -1,23 +1,23 @@
--- Superstore Sales & Profitability Analysis
--- SQL dialect: SQLite
--- Expected table: orders
--- Expected date format: M/D/YYYY or MM/DD/YYYY (e.g. 11/8/2016)
+-- Анализ продаж и прибыльности Superstore
+-- Диалект SQL: SQLite
+-- Ожидаемая таблица: orders
+-- Ожидаемый формат даты: M/D/YYYY или MM/DD/YYYY (например, 11/8/2016)
 --
--- This script covers data checks, business KPIs, product/category performance,
--- regional and segment analysis, discounts, time trends, customers, and the
--- Furniture / Tables products with a profit margin below -10%.
+-- Скрипт включает проверку качества данных, основные бизнес-показатели,
+-- анализ категорий и товаров, регионов и сегментов, скидок, динамики во времени,
+-- клиентов, а также товаров Furniture / Tables с рентабельностью ниже -10%.
 --
--- Before publishing results, run the queries against the included database
--- and confirm that the database and CSV refer to the same dataset.
--- COUNT(*) represents order lines, while COUNT(DISTINCT "Order ID")
--- represents distinct orders.
+-- Перед публикацией результатов выполните запросы на приложенной базе данных
+-- и убедитесь, что база данных и CSV содержат один и тот же набор данных.
+-- COUNT(*) показывает количество строк заказов, а COUNT(DISTINCT "Order ID")
+-- показывает количество уникальных заказов.
 
 -- ============================================================
--- 0. DATA QUALITY CHECKS
+-- 0. Проверка качества данных
 -- ============================================================
 
--- 0.1 Row count, distinct orders, and chronological date range.
--- The date is stored as text, so convert it to ISO format before MIN/MAX.
+-- 0.1 Количество строк, уникальных заказов и диапазон дат.
+-- Дата хранится как текст, поэтому перед MIN/MAX преобразуем её в формат ISO.
 WITH parsed_dates AS (
     SELECT
         CASE
@@ -53,7 +53,7 @@ SELECT
     (SELECT MAX(order_date_iso) FROM parsed_dates) AS max_order_date
 FROM orders;
 
--- 0.2 Missing values in fields used by the analysis.
+-- 0.2 Пропущенные значения в полях, используемых для анализа.
 SELECT
     SUM(CASE WHEN "Order ID" IS NULL OR TRIM("Order ID") = '' THEN 1 ELSE 0 END)
         AS missing_order_id,
@@ -65,15 +65,15 @@ SELECT
         AS missing_category
 FROM orders;
 
--- 0.3 Check uniqueness of Row ID.
+-- 0.3 Проверка уникальности Row ID.
 SELECT
     COUNT(*) AS total_rows,
     COUNT(DISTINCT "Row ID") AS distinct_row_ids,
     COUNT(*) - COUNT(DISTINCT "Row ID") AS rows_without_unique_row_id
 FROM orders;
 
--- 0.4 Check date components and the expected M/D/YYYY structure.
--- This checks basic ranges; it is not a full calendar-date validator.
+-- 0.4 Проверка компонентов даты и ожидаемой структуры M/D/YYYY.
+-- Проверяются базовые диапазоны; это не полная проверка календарных дат.
 WITH parsed_dates AS (
     SELECT
         "Order Date" AS raw_order_date,
@@ -113,10 +113,10 @@ SELECT
 FROM parsed_dates;
 
 -- ============================================================
--- 1. OVERALL BUSINESS KPIs
+-- 1. Основные бизнес-показатели
 -- ============================================================
 
--- 1.1 Total sales, total profit, and overall profit margin.
+-- 1.1 Общие продажи, общая прибыль и общая рентабельность.
 SELECT
     ROUND(SUM(Sales), 2) AS total_sales,
     ROUND(SUM(Profit), 2) AS total_profit,
@@ -124,8 +124,9 @@ SELECT
         AS profit_margin_pct
 FROM orders;
 
--- 1.2 Distinct orders and average sales/profit per order.
--- Aggregate to order level first so the averages are not order-line averages.
+-- 1.2 Количество уникальных заказов и средние продажи/прибыль на заказ.
+-- Сначала агрегируем данные на уровне заказа, чтобы средние считались по заказам,
+-- а не по отдельным строкам заказа.
 WITH order_totals AS (
     SELECT
         "Order ID",
@@ -141,10 +142,10 @@ SELECT
 FROM order_totals;
 
 -- ============================================================
--- 2. CATEGORY AND PRODUCT PERFORMANCE
+-- 2. Результаты по категориям и товарам
 -- ============================================================
 
--- 2.1 Sales, profit, and margin by category.
+-- 2.1 Продажи, прибыль и рентабельность по категориям.
 SELECT
     Category,
     ROUND(SUM(Sales), 2) AS total_sales,
@@ -155,7 +156,7 @@ FROM orders
 GROUP BY Category
 ORDER BY total_profit DESC;
 
--- 2.2 Sales, profit, and margin by category and sub-category.
+-- 2.2 Продажи, прибыль и рентабельность по категориям и подкатегориям.
 SELECT
     Category,
     "Sub-Category" AS sub_category,
@@ -167,7 +168,7 @@ FROM orders
 GROUP BY Category, "Sub-Category"
 ORDER BY total_profit ASC;
 
--- 2.3 Sub-categories with a negative total profit.
+-- 2.3 Подкатегории с отрицательной общей прибылью.
 SELECT
     "Sub-Category" AS sub_category,
     ROUND(SUM(Sales), 2) AS total_sales,
@@ -179,8 +180,8 @@ GROUP BY "Sub-Category"
 HAVING SUM(Profit) < 0
 ORDER BY total_profit ASC;
 
--- 2.4 Ten products with the lowest total profit, restricted to loss-making
--- products so that profitable products are not included in the ranking.
+-- 2.4 Десять товаров с наименьшей общей прибылью.
+-- В рейтинг включаются только убыточные товары, чтобы прибыльные товары не попали в него.
 SELECT
     "Product Name" AS product_name,
     ROUND(SUM(Sales), 2) AS total_sales,
@@ -192,10 +193,10 @@ ORDER BY total_profit ASC
 LIMIT 10;
 
 -- ============================================================
--- 3. REGIONAL AND SEGMENT PERFORMANCE
+-- 3. Результаты по регионам и сегментам
 -- ============================================================
 
--- 3.1 Sales, profit, and margin by region.
+-- 3.1 Продажи, прибыль и рентабельность по регионам.
 SELECT
     Region,
     ROUND(SUM(Sales), 2) AS total_sales,
@@ -206,7 +207,7 @@ FROM orders
 GROUP BY Region
 ORDER BY total_profit DESC;
 
--- 3.2 Sales, profit, and margin by customer segment.
+-- 3.2 Продажи, прибыль и рентабельность по сегментам клиентов.
 SELECT
     Segment,
     ROUND(SUM(Sales), 2) AS total_sales,
@@ -218,11 +219,11 @@ GROUP BY Segment
 ORDER BY total_profit DESC;
 
 -- ============================================================
--- 4. DISCOUNT ANALYSIS
+-- 4. Анализ скидок
 -- ============================================================
 
--- 4.1 Order-line performance by discount band.
--- COUNT(*) counts order lines. AVG(Profit) is average profit per order line.
+-- 4.1 Результаты по строкам заказов в группах скидок.
+-- COUNT(*) считает строки заказов. AVG(Profit) — среднюю прибыль на строку заказа.
 WITH discount_bands AS (
     SELECT
         CASE
@@ -256,17 +257,16 @@ FROM discount_bands
 GROUP BY discount_sort, discount_group
 ORDER BY discount_sort;
 
--- A single order can contain lines from multiple discount bands.
--- Do not sum distinct_orders_in_band across bands to get unique orders.
--- The association between discount and profit does not, by itself, prove
--- that discount caused a loss.
+-- Один заказ может включать строки с разными уровнями скидки.
+-- Не суммируйте distinct_orders_in_band по группам, чтобы получить число уникальных заказов.
+-- Связь скидки и прибыли сама по себе не доказывает, что убыток вызван скидкой.
 
 -- ============================================================
--- 5. TIME TRENDS AND SEASONALITY
+-- 5. Динамика во времени и сезонность
 -- ============================================================
 
--- 5.1 Monthly trend, in chronological YYYY-MM order.
--- Assumes Order Date is stored as M/D/YYYY or MM/DD/YYYY.
+-- 5.1 Помесячная динамика в хронологическом порядке YYYY-MM.
+-- Предполагается, что Order Date хранится в формате M/D/YYYY или MM/DD/YYYY.
 WITH parsed_dates AS (
     SELECT
         CAST(
@@ -312,8 +312,8 @@ FROM normalized_dates
 GROUP BY year_month
 ORDER BY year_month;
 
--- 5.2 Calendar-month seasonality aggregated across all years.
--- This is a combined January/February/... view, not a chronological trend.
+-- 5.2 Сезонность по календарным месяцам за все годы.
+-- Это сводка по январю, февралю и т. д., а не хронологическая динамика.
 WITH parsed_dates AS (
     SELECT
         CAST(
@@ -354,7 +354,7 @@ WHERE month_num BETWEEN 1 AND 12
 GROUP BY month_num
 ORDER BY month_num;
 
--- 5.3 Annual performance.
+-- 5.3 Годовые результаты.
 SELECT
     CAST(SUBSTR("Order Date", LENGTH("Order Date") - 3, 4) AS INTEGER)
         AS order_year,
@@ -374,10 +374,10 @@ GROUP BY order_year
 ORDER BY order_year;
 
 -- ============================================================
--- 6. CUSTOMER ANALYSIS
+-- 6. Анализ клиентов
 -- ============================================================
 
--- 6.1 Ten customers with the highest total profit.
+-- 6.1 Десять клиентов с наибольшей общей прибылью.
 SELECT
     "Customer Name" AS customer_name,
     COUNT(DISTINCT "Order ID") AS distinct_orders,
@@ -388,7 +388,7 @@ GROUP BY "Customer Name"
 ORDER BY total_profit DESC
 LIMIT 10;
 
--- 6.2 Ten customers with the lowest total profit, including losses only.
+-- 6.2 Десять клиентов с наименьшей общей прибылью, только с убытками.
 SELECT
     "Customer Name" AS customer_name,
     COUNT(DISTINCT "Order ID") AS distinct_orders,
@@ -401,12 +401,12 @@ ORDER BY total_profit ASC
 LIMIT 10;
 
 -- ============================================================
--- 7. FURNITURE / TABLES: PRODUCTS WITH MARGIN BELOW -10%
+-- 7. Furniture / Tables: товары с рентабельностью ниже -10%
 -- ============================================================
 
--- Aggregate sales and profit by product first, then calculate product margin.
--- The percentage threshold is -10, because this query expresses margin as
--- a percentage (100 * profit / sales), unlike the Power BI measure's -0.10.
+-- Сначала суммируем продажи и прибыль по каждому товару, затем рассчитываем рентабельность.
+-- Порог равен -10, поскольку здесь рентабельность выражена в процентах
+-- (100 * прибыль / продажи), в отличие от меры Power BI с порогом -0.10.
 WITH product_performance AS (
     SELECT
         "Product Name" AS product_name,
@@ -429,7 +429,7 @@ FROM product_performance
 WHERE profit_margin_pct < -10
 ORDER BY profit_margin_pct ASC;
 
--- 7.1 Count the distinct products that meet the same threshold.
+-- 7.1 Количество уникальных товаров, соответствующих тому же порогу.
 WITH product_performance AS (
     SELECT
         "Product Name" AS product_name,
@@ -446,7 +446,7 @@ FROM product_performance
 WHERE 100.0 * total_profit / NULLIF(total_sales, 0) < -10;
 
 -- ============================================================
--- 8. VALUES FOR REPORT FILTERS
+-- 8. Значения для фильтров отчёта
 -- ============================================================
 
 SELECT DISTINCT Category
@@ -461,4 +461,4 @@ SELECT DISTINCT Segment
 FROM orders
 ORDER BY Segment;
 
--- End of script.
+-- Конец скрипта.
